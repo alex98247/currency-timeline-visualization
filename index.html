@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="http://d3js.org/d3.v3.min.js"> </script>
+<style>
+path {
+  stroke: steelblue;
+  stroke-width: 2;
+  fill: none;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: grey;
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+</style>
+<body>
+ 
+<script type="text/javascript">
+var margin = {top: 30, right: 20, bottom: 30, left: 50 },
+  width = 600 - margin.left - margin.right,
+  height = 270 - margin.top - margin.bottom;
+// Set the ranges
+var x = d3.time.scale().range([0, width]);
+var y = d3.scale.linear().range([height, 0]);
+// Define the axes
+var xAxis = d3.svg.axis().scale(x).orient("bottom").ticks(6);
+var yAxis = d3.svg.axis().scale(y).orient("left").ticks(10);
+
+// Define the line
+var valueline = d3.svg.line()
+  .x(function(d) {
+    return x(d.data);
+  })
+  .y(function(d) {
+    return y(d.price);
+  });
+
+// Adds the svg canvas
+var svg = d3.select("body").append("svg")
+  .attr("width", width + margin.left + margin.right)
+  .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+  .attr("transform",
+    "translate(" + margin.left + "," + margin.top + ")");
+
+// Get the data
+d3.csv('USD.csv', function(error, data) {
+  data.forEach(function(d) {
+    d.data = Date.parse(d.data);
+    d.price = Number(d.price);
+  });
+  
+  // Scale the range of the data
+  x.domain(d3.extent(data, function(d) {
+    return d.data;
+  }));
+  y.domain([0, d3.max(data, function(d) {
+    return d.price;
+  })]);
+  
+  //Mouse get on peak
+  function mouseOver() {
+  
+    var SelectedDay = new Date(Number(d3.select(this).attr("id")));
+    
+    //Week start and finish days
+    var firstDay = new Date(SelectedDay.getFullYear(), SelectedDay.getMonth(), SelectedDay.getDate() - SelectedDay.getDay() + (SelectedDay.getDay() == 0 ? -6:1));
+    var lastDay = new Date(SelectedDay.getFullYear(), SelectedDay.getMonth(), SelectedDay.getDate() + 7 - SelectedDay.getDay() + (SelectedDay.getDay() == 0 ? -7:0));
+    
+    var maxVal = d3.max(data, function(d) {
+        if(d.data >= firstDay && d.data <= lastDay)
+          return d.price;
+      });
+      
+    var minVal = d3.min(data, function(d) {
+        if(d.data >= firstDay && d.data <= lastDay)
+          return d.price;
+      });
+    
+    //Add max peaks color
+    d3.selectAll("circle[name='" + maxVal + "']").each(function(d, i) {
+        if(firstDay <= d3.select(this).attr("id") && d3.select(this).attr("id") <= lastDay)
+          d3.select(this).attr('fill', 'red');
+    });
+    
+    //Add min peaks color
+    d3.selectAll("circle[name='" + minVal + "']").each(function(d, i) {
+        if(firstDay <= d3.select(this).attr("id") && d3.select(this).attr("id") <= lastDay)
+          d3.select(this).attr('fill', 'green');
+    });
+    
+    var weekData = [];
+    data.forEach(function(item) {
+      if(item.data >= firstDay && item.data <= lastDay)
+        weekData.push(item);
+    })
+    
+    //Select week
+     svg.append("path")
+    .attr("class", "line")
+    .style("stroke", "black")
+    .attr("name", "1")
+    .attr("d", valueline(weekData));
+  }
+
+  //Mouse leave peak
+  function mouseOut() {
+  
+    console.log("mouseOut");
+    d3.selectAll("circle[fill='green'],[fill='red']").each(function(){
+      d3.select(this).attr('fill', 'purple');
+    });
+    
+    //Remove black path
+    d3.select("path[name='1']").remove();
+
+  }
+  
+  //Add peaks on plane
+  svg.selectAll('g.point')
+   .data(data)
+   .enter()
+   .append('circle')
+   .attr('cx', function(d){return x(d.data)})
+   .attr('cy', function(d){return y(d.price)})
+   .attr('r', 5)
+   .attr('fill', 'purple')
+   .attr('id', function(d){return d.data})
+   .attr('name', function(d){return d.price})
+   .on("mouseover", mouseOver)
+   .on("mouseout", mouseOut);
+
+
+  // Add the valueline path.
+  svg.append("path")
+    .attr("class", "line")
+    .attr("d", valueline(data));
+ 
+  // Add the X Axis
+  svg.append("g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(0," + height + ")")
+    .call(xAxis);
+  
+// Add the Y Axis
+  svg.append("g")
+    .attr("class", "y axis")
+    .call(yAxis);
+});
+</script>
+</body>
+</html>
